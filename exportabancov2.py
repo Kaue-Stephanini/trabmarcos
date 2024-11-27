@@ -15,34 +15,13 @@ data_cleaned = data_cleaned[data_cleaned['percentage'] > 0]
 # Multiplicando por 100 para ajustar a porcentagem
 data_cleaned['percentage'] = data_cleaned['percentage'] * 100
 
-# Lógica para a categoria 'Other'
-# Somar as porcentagens menores que 1%
-other_percentage = data_cleaned[data_cleaned['percentage'] < 1]['percentage'].sum()
 
-# Remover valores já considerados em 'Other'
-data_cleaned = data_cleaned[data_cleaned['percentage'] >= 1]
 
-# Verificar se 'Other' já existe
-if 'Other' in data_cleaned['name'].values:
-    # Adicionar o valor à categoria existente
-    data_cleaned.loc[data_cleaned['name'] == 'Other', 'percentage'] += other_percentage
-else:
-    # Criar a categoria 'Other' se não existir
-    other_row = pd.DataFrame({
-        'category': ['Other'],
-        'name': ['Other'],
-        'percentage': [other_percentage],
-        'change': [None],
-        'date': [None]
-    })
-    data_cleaned = pd.concat([data_cleaned, other_row], ignore_index=True)
 
-# Garantir que a soma não exceda 100%
-total_percentage = data_cleaned['percentage'].sum()
-if total_percentage > 100:
-    excess = total_percentage - 100
-    # Ajustar 'Other' para balancear
-    data_cleaned.loc[data_cleaned['name'] == 'Other', 'percentage'] -= excess
+
+
+
+
 
 # Enviar os dados ajustados para o banco de dados
 DATABASE_URL = 'postgresql+pg8000://postgres:postgres@localhost:5432/postgres'

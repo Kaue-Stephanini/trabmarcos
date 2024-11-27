@@ -1,10 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gráficos de Pizza</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        table {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
 </head>
 <body>
     <h1>Gráficos de Pizza</h1>
@@ -14,12 +30,15 @@
     <select id="tableSelect">
         <option value="" disabled selected>Selecione uma tabela</option>
     </select>
-    <button onclick="loadChart()">Carregar Gráfico</button>
+    <button onclick="loadChart()">Carregar</button>
 
     <!-- Canvas para o gráfico -->
     <div style="width: 100%; max-width: 600px; margin: auto;">
-        <canvas id="chartCanvas" width="400" height="400"></canvas>
+        <canvas id="chartCanvas" width="400" height="400" style="display: none;"></canvas>
     </div>
+
+    <!-- Tabela interativa -->
+    <div id="tableContainer" style="width: 100%; max-width: 600px; margin: auto;"></div>
 
     <script>
         // Função para buscar tabelas disponíveis
@@ -40,20 +59,20 @@
             const tableMapping = {
                 'vram': 'VRAM UTILIZADA', 
                 'language': 'LINGUAGEM UTILIZADA',
-                'video_card_description': 'MODELO DE GPU',
                 'free_hard_drive_space': 'ESPAÇO LIVRE EM DISCO',
-                'system_ram': 'MEMORIA RAM DO SISTEMA',
-                'free_hard_drive_space': 'ESPAÇO LIVRE EM DISCO',
-                
+                'os_version': 'VERSÃO DO SO',
+                'total_hard_drive_space': 'ESPAÇO TOTAL DO DISCO',
+                'intel_cpu_speeds': 'VELOCIDADE DO CPU',
+                'physical_cpus': 'CPU FISICO',
+                'video_card_description': 'GPU UTILIZADA',
             };
 
-            // Filtrar as tabelas disponíveis
             const filteredTables = tables
-                .filter(table => table in tableMapping) // Apenas as tabelas especificadas no mapeamento
-                .map(table => ({ value: table, label: tableMapping[table] })); // Renomear tabelas
+                .filter(table => table in tableMapping)
+                .map(table => ({ value: table, label: tableMapping[table] }));
 
             const dropdown = document.getElementById('tableSelect');
-            dropdown.innerHTML = ''; // Limpar o dropdown
+            dropdown.innerHTML = '';
 
             if (filteredTables.length === 0) {
                 dropdown.innerHTML = '<option value="">Nenhuma tabela encontrada</option>';
@@ -75,6 +94,59 @@
                 return [];
             }
             return await response.json();
+        }
+
+        // Função para criar tabela interativa
+        function createInteractiveTable(data) {
+            const tableContainer = document.getElementById('tableContainer');
+            tableContainer.innerHTML = ''; // Limpar o container
+
+            // Remover entradas com nomes nulos ou vazios
+            const filteredData = data
+                .filter(item => item.name) // Remove itens com nome nulo ou vazio
+                .sort((a, b) => b.percentage - a.percentage); // Ordena por porcentagem decrescente
+
+            if (filteredData.length === 0) {
+                tableContainer.innerHTML = '<p>Nenhum dado disponível para exibir.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const tbody = document.createElement('tbody');
+
+            // Criar cabeçalho
+            const headerRow = document.createElement('tr');
+            const headers = ['Nome', 'Porcentagem'];
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+
+            // Criar linhas da tabela
+            filteredData.forEach(item => {
+                const row = document.createElement('tr');
+
+                // Nome
+                const nameCell = document.createElement('td');
+                nameCell.textContent = item.name;
+                row.appendChild(nameCell);
+
+                // Porcentagem (com no máximo 2 casas decimais)
+                const percentageCell = document.createElement('td');
+                percentageCell.textContent = item.percentage
+                    ? `${parseFloat(item.percentage).toFixed(2)}%`
+                    : '0.00%';
+                row.appendChild(percentageCell);
+
+                tbody.appendChild(row);
+            });
+
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            tableContainer.appendChild(table);
         }
 
         // Função para criar o gráfico de pizza
@@ -123,14 +195,30 @@
             });
         }
 
-        // Função para carregar o gráfico da tabela selecionada
-        function loadChart() {
+        // Função para carregar gráfico ou tabela
+        async function loadChart() {
             const tableSelect = document.getElementById('tableSelect');
             const selectedTable = tableSelect.value;
-            if (selectedTable) {
-                createPieChart(selectedTable);
-            } else {
+
+            if (!selectedTable) {
                 alert('Por favor, selecione uma tabela!');
+                return;
+            }
+
+            const data = await fetchData(selectedTable);
+
+            const chartCanvas = document.getElementById('chartCanvas');
+            const tableContainer = document.getElementById('tableContainer');
+
+            if (selectedTable === 'video_card_description') {
+                // Exibir apenas a tabela para GPU
+                chartCanvas.style.display = 'none';
+                createInteractiveTable(data);
+            } else {
+                // Exibir gráfico e tabela para outras tabelas
+                chartCanvas.style.display = 'block';
+                createPieChart(selectedTable);
+                createInteractiveTable(data);
             }
         }
 
