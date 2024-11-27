@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráficos de Pizza</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Gráficos de Pizza</h1>
+
+    <!-- Dropdown para selecionar a tabela -->
+    <label for="tableSelect">Escolha uma tabela:</label>
+    <select id="tableSelect">
+        <option value="" disabled selected>Selecione uma tabela</option>
+    </select>
+    <button onclick="loadChart()">Carregar Gráfico</button>
+
+    <!-- Canvas para o gráfico -->
+    <div style="width: 100%; max-width: 600px; margin: auto;">
+        <canvas id="chartCanvas" width="400" height="400"></canvas>
+    </div>
+
+    <script>
+        // Função para buscar tabelas disponíveis
+        async function fetchTables() {
+            const response = await fetch('http://localhost:5000/api/tables'); // Endpoint que retorna as tabelas
+            if (!response.ok) {
+                console.error('Erro ao buscar tabelas:', response.statusText);
+                return [];
+            }
+            return await response.json();
+        }
+
+        // Função para carregar o menu dropdown com as tabelas desejadas e renomeadas
+        async function populateTableDropdown() {
+            const tables = await fetchTables();
+
+            // Tabelas permitidas e seus nomes customizados
+            const tableMapping = {
+                'vram': 'VRAM UTILIZADA', 
+                'language': 'LINGUAGEM UTILIZADA',
+                'video_card_description': 'MODELO DE GPU',
+                'free_hard_drive_space': 'ESPAÇO LIVRE EM DISCO',
+                'system_ram': 'MEMORIA RAM DO SISTEMA',
+                'free_hard_drive_space': 'ESPAÇO LIVRE EM DISCO',
+                
+            };
+
+            // Filtrar as tabelas disponíveis
+            const filteredTables = tables
+                .filter(table => table in tableMapping) // Apenas as tabelas especificadas no mapeamento
+                .map(table => ({ value: table, label: tableMapping[table] })); // Renomear tabelas
+
+            const dropdown = document.getElementById('tableSelect');
+            dropdown.innerHTML = ''; // Limpar o dropdown
+
+            if (filteredTables.length === 0) {
+                dropdown.innerHTML = '<option value="">Nenhuma tabela encontrada</option>';
+            } else {
+                filteredTables.forEach(({ value, label }) => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = label;
+                    dropdown.appendChild(option);
+                });
+            }
+        }
+
+        // Função para buscar dados de uma tabela específica
+        async function fetchData(tableName) {
+            const response = await fetch(`http://localhost:5000/api/${tableName}`);
+            if (!response.ok) {
+                console.error('Erro ao buscar dados:', response.statusText);
+                return [];
+            }
+            return await response.json();
+        }
+
+        // Função para criar o gráfico de pizza
+        async function createPieChart(tableName) {
+            const data = await fetchData(tableName);
+
+            // Limpa o canvas antes de criar um novo gráfico
+            const chartCanvas = document.getElementById('chartCanvas');
+            const ctx = chartCanvas.getContext('2d');
+            if (window.currentChart) {
+                window.currentChart.destroy();
+            }
+
+            // Configurando o gráfico
+            const labels = data.map(item => item.name);
+            const percentages = data.map(item => item.percentage);
+
+            // Cores aleatórias para o gráfico
+            const backgroundColors = data.map(() => `rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.2)`);
+            const borderColors = backgroundColors.map(color => color.replace('0.2', '1'));
+
+            window.currentChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Porcentagem',
+                        data: percentages,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: `Distribuição - ${tableName}`
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para carregar o gráfico da tabela selecionada
+        function loadChart() {
+            const tableSelect = document.getElementById('tableSelect');
+            const selectedTable = tableSelect.value;
+            if (selectedTable) {
+                createPieChart(selectedTable);
+            } else {
+                alert('Por favor, selecione uma tabela!');
+            }
+        }
+
+        // Carrega o menu dropdown ao carregar a página
+        window.onload = function() {
+            populateTableDropdown();
+        }
+    </script>
+</body>
+</html>
